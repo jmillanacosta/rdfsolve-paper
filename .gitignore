@@ -1,0 +1,8 @@
+*aux
+*latexmk
+*.log
+*.fls
+*.out
+*.gz
+# GitHub Pages build output
+_site/
