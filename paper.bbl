@@ -1,0 +1,182 @@
+\begin{thebibliography}{10}
+
+\bibitem{abedjan_profiling_2014}
+Ziawasch Abedjan, Toni Gruetze, Anja Jentzsch, and Felix Naumann.
+\newblock Profiling and mining {RDF} data with {ProLOD}++.
+\newblock In {\em 2014 {IEEE} 30th {International} {Conference} on {Data}
+  {Engineering}}, pages 1198--1201, Chicago, IL, USA, March 2014. IEEE.
+
+\bibitem{ahmetaj_common_2025}
+Shqiponja Ahmetaj, Iovka Boneva, Jan Hidders, Katja Hose, Maxime Jakubowski,
+  Jose~Emilio Labra~Gayo, Wim Martens, Fabio Mogavero, Filip Murlak, Cem
+  Okulmus, Axel Polleres, Ognjen Savković, Mantas Šimkus, and Dominik
+  Tomaszuk.
+\newblock Common {Foundations} for {SHACL}, {ShEx}, and {PG}-{Schema}.
+\newblock In {\em Proceedings of the {ACM} on {Web} {Conference} 2025}, pages
+  8--21, Sydney NSW Australia, April 2025. ACM.
+
+\bibitem{bast_sparqloscope_nodate}
+H~Bast, J~Kalmbach, C~Ullinger, and R~Textor-Falconi.
+\newblock Sparqloscope: {A} generic benchmark for the comprehensive and concise
+  performance evaluation of {SPARQL} engines.
+
+\bibitem{bast_qlever_2017}
+Hannah Bast and Björn Buchhold.
+\newblock Qlever: {A} query engine for efficient sparql+ text search.
+\newblock In {\em Proceedings of the 2017 {ACM} on {Conference} on
+  {Information} and {Knowledge} {Management}}, pages 647--656, 2017.
+
+\bibitem{bikakis_rdfsynopsviz_2014}
+Nikos Bikakis, Melina Skourla, and George Papastefanatos.
+\newblock rdf:{SynopsViz} - {A} {Framework} for {Hierarchical} {Linked} {Data}
+  {Visual} {Exploration} and {Analysis}, 2014.
+\newblock Version Number: 2.
+
+\bibitem{bolleman_void-generator_2015}
+Jerven Bolleman.
+\newblock void-generator, 2015.
+
+\bibitem{carter_i_nodate}
+Emma~Kathleen Carter.
+\newblock The “{I}” in {FAIR}- {Translating} from {Interoperability} in
+  {Principle} to {Interoperation} in {Practice}.
+
+\bibitem{cheng_fedqpl_2020}
+Sijin Cheng and Olaf Hartig.
+\newblock {FedQPL}: {A} {Language} for {Logical} {Query} {Plans} over
+  {Heterogeneous} {Federations} of {RDF} {Data} {Sources} ({Extended}
+  {Version}), October 2020.
+\newblock arXiv:2010.01190 [cs].
+
+\bibitem{fernandez-alvarez_shexer_2026}
+Daniel Fernández-Álvarez and Jose~Emilio Labra-Gayo.
+\newblock {sheXer}: {A} robust and versatile library for automatic extraction
+  of {RDF} shapes.
+\newblock {\em SoftwareX}, 34:102592, June 2026.
+
+\bibitem{fernandez-alvarez_automatic_2022}
+Daniel Fernández-Álvarez, Jose~Emilio Labra-Gayo, and Daniel Gayo-Avello.
+\newblock Automatic extraction of shapes using {sheXer}.
+\newblock {\em Knowledge-Based Systems}, 238:107975, 2022.
+
+\bibitem{fernandez-alvarez_extracting_2024}
+Daniel Fernández-Álvarez, Yasunori Yamamoto, Jose~Emilio Labra~Gayo, and
+  Andra Waagmeester.
+\newblock Extracting shapes from large {RDF} data collections.
+\newblock In {\em Proceedings of the 15th {Semantic} {Web} {Applications} and
+  {Tools} for {Health} {Care} and {Life} {Sciences} {Conference}}, 2024.
+
+\bibitem{ferre_sparklis_2016}
+Sébastien Ferré.
+\newblock Sparklis: {An} expressive query builder for {SPARQL} endpoints with
+  guidance in natural language.
+\newblock {\em Semantic Web}, 8(3):405--418, December 2016.
+
+\bibitem{guarino_ontologies_nodate}
+Nicola Guarino and Pierdaniele Giaretta.
+\newblock Ontologies and {Knowledge} {Bases}.
+
+\bibitem{hasnain_sportal_2016}
+Ali Hasnain, Qaiser Mehmood, Syeda Sana~e Zainab, and Aidan Hogan.
+\newblock {SPORTAL}: {Profiling} the {Content} of {Public} {SPARQL}
+  {Endpoints}.
+\newblock {\em International Journal on Semantic Web and Information Systems
+  (IJSWIS)}, 12(3):134--163, July 2016.
+
+\bibitem{hoyt_unifying_2022}
+Charles~Tapley Hoyt, Meghan Balk, Tiffany~J. Callahan, Daniel
+  Domingo-Fernández, Melissa~A. Haendel, Harshad~B. Hegde, Daniel~S.
+  Himmelstein, Klas Karis, John Kunze, Tiago Lubiana, Nicolas Matentzoglu,
+  Julie McMurry, Sierra Moxon, Christopher~J. Mungall, Adriano Rutz, Deepak~R.
+  Unni, Egon Willighagen, Donald Winston, and Benjamin~M. Gyori.
+\newblock Unifying the identification of biomedical entities with the
+  {Bioregistry}.
+\newblock {\em Scientific Data}, 9(1):714, November 2022.
+
+\bibitem{hoyt_assembly_2025}
+Charles~Tapley Hoyt, Klas Karis, and Benjamin~M Gyori.
+\newblock Assembly and reasoning over semantic mappings at scale for biomedical
+  data integration.
+\newblock {\em Bioinformatics}, 41(11):btaf542, November 2025.
+
+\bibitem{kamdar_empirical_2021}
+Maulik~R. Kamdar and Mark~A. Musen.
+\newblock An empirical meta-analysis of the life sciences linked open data on
+  the web.
+\newblock {\em Scientific Data}, 8(1):24, January 2021.
+
+\bibitem{kawashima_nbdc_2018}
+Shuichi Kawashima, Toshiaki Katayama, Hideki Hatanaka, Tatsuya Kushida, and
+  Toshihisa Takagi.
+\newblock {NBDC} {RDF} portal: a comprehensive repository for semantic data in
+  life sciences.
+\newblock {\em Database}, 2018, January 2018.
+
+\bibitem{kinjo_togomcp_nodate}
+Akira~R Kinjo, Yasunori Yamamoto, Samuel Bustamante-Larriet, Jose-Emilio
+  Labra-Gayo, and Takatomo Fujisawa.
+\newblock {TogoMCP}: {Natural} {Language} {Querying} of {Life}-{Science}
+  {Knowledge} {Graphs} via {Schema}-{Guided} {LLMs} and the {Model} {Context}
+  {Protocol}.
+
+\bibitem{maillot_indegx_2023}
+Pierre Maillot, Olivier Corby, Catherine Faron, Fabien Gandon, and Franck
+  Michel.
+\newblock {IndeGx}: {A} model and a framework for indexing {RDF} knowledge
+  graphs with {SPARQL}-based test suits.
+\newblock {\em Journal of Web Semantics}, 76:100775, April 2023.
+
+\bibitem{mihindukulasooriya_loupe_nodate}
+Nandana Mihindukulasooriya, Marıa Poveda-Villalon, Raul Garcıa-Castro, and
+  Asuncion Gomez-Perez.
+\newblock Loupe - {An} {RDF} {Dataset} {Description} {Model} for {Expressing}
+  {Vocabulary} {Usage} {Patterns}.
+
+\bibitem{mihindukulasooriya_rdf_2018}
+Nandana Mihindukulasooriya, Mohammad Rifat~Ahmmad Rashid, Giuseppe Rizzo, Raúl
+  García-Castro, Oscar Corcho, and Marco Torchiano.
+\newblock {RDF} shape induction using knowledge base profiling.
+\newblock In {\em Proceedings of the 33rd {Annual} {ACM} {Symposium} on
+  {Applied} {Computing}}, pages 1952--1959, 2018.
+
+\bibitem{papadaki_brief_2023}
+Maria-Evangelia Papadaki, Yannis Tzitzikas, and Michalis Mountantonakis.
+\newblock A {Brief} {Survey} of {Methods} for {Analytics} over {RDF}
+  {Knowledge} {Graphs}.
+\newblock {\em Analytics}, 2(1):55--74, January 2023.
+
+\bibitem{spahiu_towards_2018}
+Blerina Spahiu, Andrea Maurino, and Matteo Palmonari.
+\newblock Towards {Improving} the {Quality} of {Knowledge} {Graphs} with
+  {Data}-driven {Ontology} {Patterns} and {SHACL}.
+\newblock In {\em {ISWC}}, pages 103--117, 2018.
+
+\bibitem{spahiu_understanding_2024}
+Blerina Spahiu, Matteo Palmonari, Renzo~Arturo Alva~Principe, and Anisa Rula.
+\newblock Understanding the structure of knowledge graphs with {ABSTAT}
+  profiles.
+\newblock {\em Semantic Web}, 15(5):1519--1545, October 2024.
+
+\bibitem{payne_link_2023}
+Ruben Taelman and Ruben Verborgh.
+\newblock Link {Traversal} {Query} {Processing} {Over} {Decentralized}
+  {Environments} with {Structural} {Assumptions}.
+\newblock In Terry~R. Payne, Valentina Presutti, Guilin Qi, María
+  Poveda-Villalón, Giorgos Stoilos, Laura Hollink, Zoi Kaoudi, Gong Cheng, and
+  Juanzi Li, editors, {\em The {Semantic} {Web} – {ISWC} 2023}, volume 14265,
+  pages 3--22. Springer Nature Switzerland, Cham, 2023.
+\newblock Series Title: Lecture Notes in Computer Science.
+
+\bibitem{tirlet_modular_nodate}
+Yael Tirlet, Jerven Bolleman, Emmanuelle Becker, Fabrice Legeai, and Olivier
+  Dameron.
+\newblock Modular composition of {SPARQL} queries for focusing on what to look
+  for rather than how to get it.
+
+\bibitem{walter_grasp_2025}
+Sebastian Walter and Hannah Bast.
+\newblock {GRASP}: {Generic} {Reasoning} {And} {SPARQL} {Generation} across
+  {Knowledge} {Graphs}.
+\newblock 2025.
+
+\end{thebibliography}

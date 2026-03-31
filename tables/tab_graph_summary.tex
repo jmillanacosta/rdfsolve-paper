@@ -1,0 +1,21 @@
+\begin{table}[h]
+\caption{Summary of dataset-level graph properties and Louvain community structure.}
+\label{tab:graph_summary}
+\centering
+\small
+\begin{tabular}{l r r r r r r r r r}
+\toprule
+ & & & & $|V_{\text{lcc}}|$ & & & & & $|V_{\text{lcc}}|$ \\
+Graph variant
+ & $|V|$ & $|E|$ & $k$ & & $d$ & $\delta$ & $c$ & $Q$ & {\small comm.} \\
+\midrule
+$G_{\text{schema}}$   & 88 & 869 & 28 & 61 & 4 & 0.227 & 3 & 0.544 & 42 \\
+$G_{\text{raw}}$      & 88 & 869 & 28 & 61 & 4 & 0.227 & -- & -- & -- \\
+$G_{\text{inferred}}$ & 88 & 869 & 28 & 61 & 4 & 0.227 & 3 & 0.544 & 42 \\
+\bottomrule
+\multicolumn{10}{l}{\scriptsize $|V|$: nodes; $|E|$: edges; $k$: connected components;
+$|V_{\text{lcc}}|$: largest component nodes;} \\
+\multicolumn{10}{l}{\scriptsize $d$: diameter; $\delta$: density;
+$c$: Louvain communities; $Q$: modularity; comm.: nodes in largest community.}
+\end{tabular}
+\end{table}
