@@ -1,0 +1,151 @@
+name: GitHub Pages - paper
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'paper.tex'
+      - 'paper.bib'
+      - 'figures/**'
+      - 'notebooks/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── LaTeX -> HTML via pandoc (no extra TeX install needed) ──
+      - name: Install pandoc
+        run: |
+          wget -q https://github.com/jgm/pandoc/releases/download/3.2/pandoc-3.2-1-amd64.deb
+          sudo dpkg -i pandoc-3.2-1-amd64.deb
+
+      - name: Convert paper LaTeX -> HTML
+        run: |
+          pandoc paper.tex \
+            --bibliography=paper.bib \
+            --citeproc \
+            --standalone \
+            --toc \
+            --metadata title="rdfsolve - paper" \
+            --css https://cdn.jsdelivr.net/npm/water.css@2/out/water.min.css \
+            -o _site/paper.html
+        continue-on-error: true   # proceed even if some LaTeX macros fail
+
+      # ── Copy figures ──
+      - name: Copy figures
+        run: cp -r figures _site/figures 2>/dev/null || true
+
+      # ── Build landing index.html ──
+      - name: Build index page
+        run: |
+          cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <title>rdfsolve - paper &amp; notebooks</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.min.css" />
+          </head>
+          <body>
+            <h1>rdfsolve</h1>
+            <p>
+              <a href="https://jmillanacosta.github.io/rdfsolve-frontend/">← Interactive demo</a>
+              &nbsp;·&nbsp;
+              <a href="https://rdfsolve.readthedocs.io/">Package docs</a>
+              &nbsp;·&nbsp;
+              <a href="https://github.com/jmillanacosta/rdfsolve-paper">GitHub</a>
+            </p>
+            <h2>Paper</h2>
+            <p><a href="paper.html">Read the paper (HTML)</a></p>
+            <h2>Notebooks</h2>
+            <ul id="nb-list"></ul>
+            <script>
+              // Dynamically list rendered notebooks placed alongside this page.
+              fetch('notebooks/manifest.json')
+                .then(r => r.ok ? r.json() : [])
+                .then(entries => {
+                  const ul = document.getElementById('nb-list');
+                  entries.forEach(e => {
+                    const li = document.createElement('li');
+                    li.innerHTML = '<a href="' + e.file + '">' + e.title + '</a>';
+                    ul.appendChild(li);
+                  });
+                })
+                .catch(() => {});
+            </script>
+          </body>
+          </html>
+          EOF
+
+      # ── Render notebooks to HTML (reuse make-notebooks pattern) ──
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install notebook deps
+        run: pip install --quiet jupyter nbconvert
+
+      - name: Render notebooks
+        run: |
+          mkdir -p _site/notebooks
+          manifest="[]"
+          for nb in notebooks/*.ipynb; do
+            [ -f "$nb" ] || continue
+            title=$(python3 -c "
+          import json, pathlib
+          nb = json.loads(pathlib.Path('${nb}').read_text())
+          cells = nb.get('cells', [])
+          for c in cells:
+              src = ''.join(c.get('source', []))
+              if src.strip().startswith('#'):
+                  print(src.strip().lstrip('#').strip().split('\n')[0])
+                  break
+          else:
+              print(pathlib.Path('${nb}').stem)
+          ")
+            out="_site/notebooks/$(basename "${nb%.ipynb}").html"
+            jupyter nbconvert --to html --execute "$nb" --output "$out" 2>/dev/null || \
+              jupyter nbconvert --to html "$nb" --output "$out" 2>/dev/null || true
+            [ -f "$out" ] && manifest=$(python3 -c "
+          import json, sys
+          m = json.loads(sys.argv[1])
+          m.append({'title': sys.argv[2], 'file': 'notebooks/$(basename "${nb%.ipynb}").html'})
+          print(json.dumps(m))
+          " "$manifest" "$title")
+          done
+          echo "$manifest" > _site/notebooks/manifest.json
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
