@@ -1,0 +1,772 @@
+\documentclass[12pt]{article}
+\usepackage{a4wide}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{algorithm,algpseudocode}
+\usepackage{amsmath} 
+\usepackage{amssymb} 
+ \usepackage{graphicx} 
+\title{rdf-solve: Interoperable RDF for the Life Sciences through Automated Schema Mining and Semantic Mappings}
+\author{Javier Millan Acosta \and Egon Willighagen \and More}                           % Will see
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+The life sciences community has produced many RDF knowledge bases encoding decades of curated biological
+data, collectively forming the Life Sciences Linked Open Data (LSLOD) cloud.  % Introduced in the 2020 nature paper
+The expressivity of the Resource Description Framework (RDF) allows domains such as chemistry, agriculture, and disease research to define or reuse vocabularies, relationships (properties) and class hierarchies as the schema for their typed statements. This flexibility also fragments 
+representation: the same biological entity, such as a protein, may be modeled differently across datasets
+depending on whether it is treated as a sequence, a structure, or a pathway component.
+Integrating RDF requires identifying and mapping these schemas, which are usually described in documentation or publications rather than as linked data. Without that structural knowledge, even well-curated cross-references and semantic mappings have limited practical reach: finding which classes and properties exist across resources to determine their interoperability remains largely manual and must be repeated when databases are updated.
+Prior meta-analyses of the LSLOD cloud have diagnosed that interoperability between datasets in LSLOD could be improved.  
+However, no prior work addresses schema interoperability by comprehensively mining schema patterns and integrating mappings to materialize integration.  %% CHECK KAMDAR THESIS: does it describe materializing mappings, at all?
+
+A three-stage methodology addresses this issue of findability, interoperability, and maintainability. First, the schema 
+of RDF databases is extracted directly by mining their SPARQL endpoint and serialized into multiple standards, including JSON-LD as the basic internal representation, which can also be consumed directly by downstream applications; endpoint documentation as RDF catalogs using the VoID-ext vocabulary; LinkML for downstream exports, and SHACL graphs for description and validation purposes. Second, classes and properties are mapped across resources using instance-based URI probing and curated mapping sets. Third, reasoning over entity, class and property mappings infers and harmonizes cross-resource links.
+
+The resulting combined graphs can be exported together with queried data as a self-describing, interlinked dataset that supports visualization, querying, and exports including RDF, property graphs, and SQL tables. The approach is implemented in rdf-solve, released as a Python package, command-line tool, and containerized web application with a REST API. All steps and outputs from the pipeline output machine-readable provenance metadata and are reproducible.  % Well, reproducibility depends on the endpoints being available
+
+\end{abstract}
+
+
+\section{Introduction}
+
+\subsection{Knowledge representation in the life sciences}
+
+Knowledge bases (...). \cite{guarino_ontologies_nodate}
+
+
+The Resource Description Framework (RDF) models information as subject--predicate--object
+triples whose nodes are identified by Uniform Resource Identifiers
+(URIs)~\cite{specifications}.
+RDF Schema (RDFS) and the Web Ontology Language (OWL) layer class hierarchies,
+property constraints, and logical definitions on top of this
+model~\cite{goodsources}.
+The biomedical community was among the earliest adopters of Semantic Web
+technologies for knowledge management and clinical decision
+support~\cite{goodsources}, and the resulting Life Sciences Linked Open Data
+(LSLOD) cloud now spans %howmany% 
+RDF resources~\cite{kamdar_empirical_2021}.
+
+RDF offers several structural advantages for large-scale data integration.
+Its uniform syntax and schema-less flexibility support federated querying
+across multiple heterogeneous sources with minimal syntactic
+adaptation~\cite{goodsources}.
+Semantics encoded in RDFS and OWL enable software reasoners to verify
+consistency and generate novel inferences from existing
+assertions~\cite{goodsources}, and the linking model facilitates discovery of
+related resources even when underlying schemas differ~\cite{goodsources}.
+
+\subsection{The gap}
+
+Despite these properties, the LSLOD cloud faces significant
+interoperability hurdles.
+There is semantic heterogeneity due to varying entity
+notations, diverse schemas, and a insufficient common vocabulary
+reuse~\cite{kamdar_empirical_2021}.
+%"To the point where..." %decide phrasing, without mappings between equivalent entities, the question of to which point these datasets can truly be considered linked ~\cite{goodsources}.
+Analyzing complex knowledge graphs requires extensive computational skills
+and deep knowledge of domain-specific terminologies~\cite{goodsources}, and researchers often struggle to
+find sources available and accessible on the Web~\cite{goodsources}}.
+
+Knowing which ontologies a dataset imports does not reveal its actual
+structure: which classes are instantiated, how often a property appears,
+or where values are missing cannot be inferred from ontology declarations
+alone.
+
+Two datasets that (partially) reuse the same ontology can have very different practical
+shapes; two datasets with disjoint vocabularies can have overlapping
+patterns that remain invisible without mappings.
+A meta-analysis of approximately 80 LSLOD sources estimated vocabulary
+reuse at under 20\,\% and concluded that the cloud "is not actually as
+densely connected as is often
+indicated"~\cite{kamdar_empirical_2021}.
+
+A further conceptual barrier stems from the evolution of schema
+philosophies.
+The Semantic Web community has traditionally treated schemas as
+\emph{descriptive}; promoting flexibility; while the database community
+regards them as \emph{prescriptive}; enforcing
+validation~\cite{ahmetaj}.
+The development of validation languages such as SHACL and
+ShEx~\cite{ahmetaj,mihindukulasooriya_rdf_2018} reflects a convergence of these
+views, yet most ontologies remain designed for entailment rather than
+validation and lack the granular information needed to detect data
+quality violations~\cite{mihindukulasooriya_rdf_2018}.
+
+Publishers attempt to reuse standard terms but represent them with
+different notations or namespaces; e.g., varying URI patterns for the
+same ChEBI identifier; which technically prevents automated federation
+and integration\cite{hoyt_unifying_2022, its sources too}.
+
+\cite{maillot_eat_2025} read maillot.
+
+\subsection{Related work}
+
+Several methods have been developed to analyze and characterize RDF data,
+each addressing a distinct slice of the schema discoverability problem.
+\paragraph*{RDF reviews}
+IndeGx \cite{maillot_indegx_2023}
+VoID (find paper).
+\paragraph*{Schema description and extraction.}
+Shape languages such as SHACL and ShEx can formally describe RDF
+schemas~\cite{ahmetaj_common_2025,mihindukulasooriya_rdf_2018}.
+Tools to extract them automatically exist, including
+sheXer~\cite{shexer}, VoID-generator\cite{bolleman_void-generator_2015}, Loupe \cite{loupe}, \cite{kamdar_empirical_2021}, but adoption among life sciences
+dataset providers is slow.
+Automated extraction is also technically constrained by endpoint
+timeouts and deeply nested constraint patterns.
+VoID service descriptions are a lighter alternative; where published,
+they enable tools such as SPARQL-editor~\cite{emonet_sparqleditor} to
+populate query builders with auto-completion, demonstrating the
+practical value of machine-readable schema metadata.
+Still, most endpoints do not publish VoID graphs.
+
+The DBCLS-developed rdf-config~\cite{kawashima_nbdc_2018} provides a
+human-readable YAML schema representation, manually curated for
+resources in the RDF Portal and used for finding links across the databases hosted 
+in rdf Portal. SPARQL query collections offer another useful complement for describing
+RDF resources, illustratign possible uses for a database. More recently \cite{tirlet_modular_nodate} describes
+reusing these queries as modules to allow users to dig deeper. % Rephrase this
+
+\paragraph*{Linked data profiling and schema mining.}
+Several profiling systems extract structural summaries from SPARQL
+endpoints.
+Loupe~\cite{loupe2015} mines class, property, and triple-pattern
+statistics and presents them through an interactive web interface.
+ABSTAT~\cite{abstat2016} computes ontology-driven linked data summaries
+with pattern minimization.
+ProLOD~\cite{prolod2010} profiles linked open data using statistical
+and structural analysis.
+
+\paragraph*{RDF shape induction.}
+Mihindukulasooriya et~al.~\cite{mihindukulasooriya_rdf_2018} use machine
+learning; specifically Random Forest classifiers trained on profiled
+RDF data from Loupe; to automatically induce integrity constraints in
+SHACL and ShEx, achieving up to 97\,\% precision in cardinality
+estimation.
+Their work highlights the gap between ontology-level semantics and the
+granular validation constraints that practical data quality requires.
+
+\paragraph*{Scalable analytics on RDF.}
+
+% Many of these tools are down! How to talk about that?
+
+Sparklis~\cite{ferre_sparklis_2016} allows users to build analytical queries using natural language guidance directly against SPARQL endpoints. %How and what
+SynopsViz~\cite{bikakis_rdfsynopsviz_2014} provides hierarchical visual exploration and multilevel charting of large RDF datasets through incremental data
+retrieval and hierarchical aggregation~\cite{papadaki_brief_2023}.
+shexer \cite{shexer}; and shex-consolidator~\cite{fernandez-alvarez_extracting_2024} for merging shape schemas.
+\paragraph*{LSLOD meta-analysis.}
+Most directly related to the present work, ~\cite{kamdar_empirical_2021} conducted a comprehensive meta-analysis
+of the LSLOD cloud.
+Their Extraction Algorithm enumerates classes and properties connecting them for a given endpoint endpoint.
+The extracted schema graph was used to analyze vocabulary reuse
+(estimated at 19.86\,\%), detect communities of similar content via
+GloVe word-embedding similarity and Louvain
+clustering~\cite{kamdar_empirical_2021}, and quantify inter- and intra-linking patterns.
+Their finding that the LSLOD cloud "is not actually as densely connected as is often indicated" directly motivates the present work.
+However, their approach remains diagnostic: it identifies latent overlap via community detection but does not materialize integration bridges or produce actionable schema artefacts (other than the pickle NetworkX archived in figshare).
+
+\subsection{Scope and contributions}
+
+Formally, schema-based interoperability requires two capabilities.
+The first is measuring \emph{consistency} within a dataset: how stable
+is a structural pattern across instances?
+Consistency scores, such as the coverage annotations introduced in
+sheXer, capture how often a class--property--value-type pattern actually
+occurs.
+The second is measuring \emph{alignment} across datasets: identifying
+classes or properties in different graphs that correspond to each other.
+This requires curated mappings or cross-references that link entities
+across resources.
+
+Several tools address parts of this space in isolation, however, no existing system connects schema extraction, multi-format
+serialization, mapping inference, and cross-resource connectivity
+analysis into a single pipeline.
+
+rdf-solve addresses this gap.
+Building on the class-then-property paradigm of prior profiling work,
+it contributes:
+\begin{enumerate}
+\item a fault-tolerant mining algorithm with multi-level fallbacks
+      (bisection, adaptive pagination, predicate-first decomposition)
+      that attempts to exhaust all possibilities before having to 
+      silently discard classes on failure (Section~\ref{sec:mining});
+\item a mapping inference layer that materializes cross-endpoint
+      integration bridges from entity-level mappings, curated mapping
+      sets, and transitivity/inversion reasoning
+      (Section~\ref{sec:results-mappings});
+\item serialization of every extraction step in standard linked data
+      formats (JSON-LD, VoID, SHACL, LinkML) with provenance
+      metadata; and
+\item a connectivity graph that identifies which endpoint pairs can be
+      concretely joined via shared ontology classes and inferred
+      mappings.
+      (Section~\ref{sec:results-connectivity}).
+\end{enumerate}
+The tool is open-source, CLI-driven, and ships as a containerized web
+application.
+
+\section{Methods}
+
+\begin{figure}[h]
+
+\includegraphics[width=1\linewidth]{figures/workflow.png} 
+\label{fig:workflow}
+\caption{Workflow for the rdf-solve (...)}
+\label{fig:image2}
+\end{figure}
+
+\subsection{Schema Mining}
+\label{sec:mining}
+
+rdf-solve approximates the schema of a SPARQL endpoint by mining
+co-occurrence patterns from instance data.  The approach follows the
+class-then-property extraction paradigm introduced by linked data
+profiling tools~\cite{loupe2015,kamdar_empirical_2021} and used outside SPARQL
+\cite{shexer} but extends it with three key differences: 
+(i)~configurable class batching via
+SPARQL \texttt{VALUES} bindings, reducing round-trips;
+(ii)~a recursive fallback chain (bisection, pagination with adaptive
+page sizing, and predicate-first decomposition) that degrades
+gracefully instead of discarding classes on failure; and
+(iii)~separation of pattern discovery from counting, ensuring that a
+count-query failure does not lose already-discovered patterns.
+
+Three pattern types are recorded: typed-object patterns $(c, p, o)$
+where $o$ is the \texttt{rdf:type} of the object URI; literal
+patterns $(c, p, \mathit{dt})$ where $\mathit{dt}$ is the object
+datatype; and untyped-URI patterns $(c, p)$ where no
+\texttt{rdf:type} was retrievable for the object under the current
+graph scope and inference presented by the endpoint.
+
+\paragraph*{Notation.}
+$Q(B, G)$ denotes query template $Q$ evaluated for class batch $B$
+restricted to the named graphs in $G$, a set of zero or more URIs
+supplied via \texttt{--graph-uri}.
+When $G = \varnothing$ no \texttt{GRAPH} clause is added and the
+query runs over the endpoint's default dataset.
+When $|G| = 1$ a single \texttt{GRAPH <uri> \{ \ldots \}} clause
+wraps the pattern; when $|G| > 1$ a
+\texttt{VALUES (?g) \{ \ldots \} GRAPH ?g \{ \ldots \}} block
+iterates over each named graph.
+In all cases the scope is a query-level restriction; endpoint dataset
+configuration may override or ignore it.
+$\top$ / $\bot$ denote success / failure (timeout or cost-limit).
+$B_{[:m]}$ and $B_{[m:]}$ are the two halves of $B$ after splitting
+at $m=\lfloor|B|/2\rfloor$; bisecting reduces the number of classes
+in the \texttt{VALUES} binding, narrowing the class-filter scope and
+isolating expensive classes into separate sub-queries.
+$\ell_{\min}$: minimum page size (configurable via \texttt{--chunk-size})
+below which pagination is abandoned.
+$Q_C$: \texttt{SELECT DISTINCT ?c WHERE \{?s a ?c\}} (type
+enumeration).
+$Q_p(c)$: \texttt{SELECT DISTINCT ?p WHERE \{?s a <$c$>; ?p ?o\}}
+(predicate enumeration for class $c$).
+$Q_\mathrm{to}^p(c,p)$: $Q_\mathrm{to}$ restricted to predicate $p$
+for class $c$.
+$t \models (s,p,o)$: triple $t=(s',p',o')$ matches pattern $(s,p,o)$
+operationally if the endpoint's evaluation of
+\texttt{?s a <$s$>; <$p$> ?o; ?o a <$o$>} (or the literal/datatype
+variant) binds $t$; this depends on the endpoint's graph scope,
+asserted \texttt{rdf:type} triples, and any active inference regime.
+$n_{(s,p,o)} = |\{t \mid t \models (s,p,o)\}|$ is the co-occurrence
+count as returned by the endpoint's \texttt{COUNT(*)} aggregate.
+$Q_\mathrm{to}^{cnt}$, $Q_\mathrm{lit}^{cnt}$,
+$Q_\mathrm{uri}^{cnt}$: the corresponding
+\texttt{SELECT \ldots COUNT(*) \ldots GROUP BY} variants of
+$Q_\mathrm{to}$, $Q_\mathrm{lit}$, $Q_\mathrm{uri}$; they accept
+the same \texttt{VALUES} batching and fallback chain.
+
+\paragraph*{Procedure.}
+\textsc{Query}$(B, Q, E, G)$ sends $Q(B, G)$ to endpoint $E$ as a
+single \texttt{SELECT DISTINCT} query.
+On $\top$ it returns the results immediately.
+On $\bot$, if $|B| > 1$ the batch is bisected and each half retried
+recursively: reducing the \texttt{VALUES} binding narrows the set of
+classes evaluated per sub-query, so that a class whose query exceeds
+the endpoint's cost limit does not cause the remaining classes in the
+same batch to be skipped.
+Pagination (\texttt{LIMIT}/\texttt{OFFSET}) is not tried for
+multi-class batches because it may not reduce per-page cost on
+endpoints that re-evaluate the full binding set for each page.
+For single-class batches ($|B|=1$) the class filter is already
+minimal, so the fallback is pagination (\texttt{LIMIT $\ell$} /
+\texttt{OFFSET $k\ell$}, $k = 0, 1, 2, \ldots$).
+If a page fails, $\ell$ is halved and that page is retried; if $\ell$
+falls below $\ell_{\min}$ pagination is abandoned and, for
+$Q_\mathrm{to}$, a predicate-first decomposition is attempted:
+$Q_p(B[0])$ enumerates predicates $P$ and
+$Q_\mathrm{to}^p(B[0],p)$ is called once per $p \in P$; if $Q_p$
+itself fails, the class contributes no typed-object patterns.
+Any results accumulated before pagination was abandoned are retained.
+If all strategies fail, \textsc{Query} returns $\emptyset$.
+
+Phase~1 enumerates the asserted instantiated types $C$ visible
+under~$G$.
+When a \texttt{class\_chunk\_size} is configured, queries are
+paginated with (\texttt{LIMIT}/\texttt{OFFSET}) steps; otherwise $Q_C$ is sent
+as a single unpaginated query.
+In both cases the request is subject to the same bisect/paginate
+fallback chain as Phase~2.
+Phase~2 partitions $C$ into batches $B$ of configurable size and
+calls \textsc{Query} three times per batch ($Q_\mathrm{to}$,
+$Q_\mathrm{lit}$, and $Q_\mathrm{uri}$) accumulating patterns into
+$S$.
+If $G \neq \varnothing$ and Phase~2 yields $S = \emptyset$ despite
+$C \neq \emptyset$, an \emph{ontology-graph fallback} is triggered:
+Phase~2 is re-run with $G' = \varnothing$, because the named graph
+may contain only class definitions while instances reside in the
+default graph. % Example, when they have well-defined ontology vs data graphs, happens with SIB a lot
+Optionally (enabled by default, disabled with \texttt{--no-counts}),
+a counting phase follows: the unique subject classes in $S$ are
+re-batched identically to Phase~2 and each batch is submitted as a
+grouped \texttt{SELECT \ldots COUNT(*) \ldots GROUP BY} query through
+\textsc{Query}, so count queries benefit from the same bisect and
+pagination fallbacks as pattern queries.
+If a count query fails for a particular class (after all fallbacks),
+the corresponding patterns are retained in $S$ with no count.
+
+Algorithm~\ref{alg:mine} summarizes the full procedure.
+
+\begin{algorithm}[t]
+\caption{Schema pattern mining}
+\label{alg:mine}
+\begin{algorithmic}[1]
+  \scriptsize
+\Require endpoint $E$; graph scope $G$
+\Ensure $S$ (observed co-occurrence patterns); $\emptyset$ for a
+        batch may mean failure or genuinely no patterns;
+        incompleteness is logged but not encoded in $S$
+\State $S \leftarrow \emptyset$
+\Statex
+\textbf{Phase 1 — class discovery}
+\State $C \leftarrow$ \Call{Query}{$\varnothing$, $Q_C$, $E$, $G$}
+       \Comment{paginated if \texttt{class\_chunk\_size} set}
+\Statex
+\textbf{Phase 2 — pattern mining}
+\For{each batch $B \subseteq C$}
+  \State $S \leftarrow S \cup$ \Call{Query}{$B$, $Q_\mathrm{to}$, $E$, $G$}
+         \Comment{typed-object patterns}
+  \State $S \leftarrow S \cup$ \Call{Query}{$B$, $Q_\mathrm{lit}$, $E$, $G$}
+         \Comment{literal patterns}
+  \State $S \leftarrow S \cup$ \Call{Query}{$B$, $Q_\mathrm{uri}$, $E$, $G$}
+         \Comment{untyped-URI patterns}
+\EndFor
+\If{$S = \emptyset$ \textbf{and} $C \neq \emptyset$ \textbf{and} $G \neq \varnothing$}
+       \Comment{ontology-graph fallback}
+  \State re-run Phase~2 with $G' = \varnothing$
+\EndIf
+\Statex
+\textbf{Counting phase} (optional; skipped with \texttt{--no-counts})
+\State $N \leftarrow \emptyset$
+\For{each batch $B \subseteq C_S$}
+        \Comment{$C_S$: unique subject classes in $S$}
+  \State $N \leftarrow N \cup$ \Call{Query}{$B$, $Q_\mathrm{to}^{cnt}$, $E$, $G$}
+         \Comment{typed-object counts}
+  \State $N \leftarrow N \cup$ \Call{Query}{$B$, $Q_\mathrm{lit}^{cnt}$, $E$, $G$}
+         \Comment{literal counts}
+  \State $N \leftarrow N \cup$ \Call{Query}{$B$, $Q_\mathrm{uri}^{cnt}$, $E$, $G$}
+         \Comment{untyped-URI counts}
+\EndFor
+\State $S \leftarrow \{\,(s,p,o,n_{(s,p,o)}) \mid (s,p,o)\in S\,\}$
+        \Comment{merge; $n$ = \texttt{null} when no count retrieved}
+\State \Return $S$
+\Statex
+\Function{Query}{$B$, $Q$, $E$, $G$}
+  \If{$Q(B,G) = \top$} \Return results \EndIf
+        \Comment{single \texttt{SELECT DISTINCT}}
+  \If{$|B| > 1$} \Comment{bisect: isolates expensive classes into separate sub-queries}
+    \State \Return \Call{Query}{$B_{[:m]}$, $Q$, $E$, $G$}
+            $\cup$ \Call{Query}{$B_{[m:]}$, $Q$, $E$, $G$}
+  \EndIf
+  \State $R \leftarrow \emptyset$;\ $k \leftarrow 0$
+  \Repeat \Comment{paginate single-class result set (\texttt{SELECT DISTINCT})}
+    \If{page $Q(B,G,\ell,k) = \top$}
+      \State $R \leftarrow R \cup \text{page results}$;\ $k \leftarrow k+1$
+    \Else
+      \State $\ell \leftarrow \ell / 2$;\ \textbf{retry page} $k$
+      \If{$\ell < \ell_{\min}$} \textbf{goto} \textit{decompose} \EndIf
+    \EndIf
+  \Until{empty page received}
+  \State \Return $R$
+  \Statex
+  \State \textit{decompose:}
+  \If{$Q = Q_\mathrm{to}$} \Comment{predicate-first decomposition (last resort)}
+    \State $P \leftarrow$ \Call{Query}{$\{B[0]\}$, $Q_p(B[0])$, $E$, $G$}
+    \State \Return $\displaystyle\bigcup_{p \in P}$
+            \Call{Query}{$\{B[0]\}$, $Q_\mathrm{to}^p(B[0],p)$, $E$, $G$}
+  \EndIf
+  \State \Return $\emptyset$ \Comment{strategies exhausted}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Semantic mapping layer}
+
+The mapping layer operates at four levels. Instance-based matching probes SPARQL endpoints
+for bioregistry \cite{bioregistry} URI patterns to detect which datasets share entity
+namespaces. This requires no prior knowledge of the schema and identifies candidate mapping
+targets from the endpoint content directly. Curated mapping sets are imported via SSSOM sources,
+adding support for frameworks like SeMRA \cite{hoyt_assembly_2025}, covering sources such as NCIT-ChEBI.
+These are serialized as JSON-LD with one file per source-prefix pair. Inference then
+propagates new links by applying transitivity, inversion, and evidence-chain composition
+over the combined mapping graph as decribed in \cite{hoyt_assembly_2025}. 
+
+The fourth layer maps predicates to allow relaxation of expressivity for semantically related 
+predicates, allowing for link discovery and enabling property graph exports (THIS PART IS TODO).
+
+All mappings carry provenance metadata including evidence chains and justification predicates 
+from the SSSOM and semapv vocabularies.
+
+\subsection{Integration of SPARQL examples}
+
+TODO, get SHACL sparql executbales from endpoints or static sites and render their diagram.                                                                                   % I haven't written code for this yet: discover SPARQL executables and render their diagrams, etc.
+
+\subsection{Query generator (web app)}
+Querying, export queried data to (graph) databases, generate scripts to reproduce the steps in Python. TODO.    % Here, use property mappings to try to distille the simplest predicates to create e.g. neo4j exports. Mapping RO predicates to SIO predicates, then using more top-level options to not overfit, have a way to serialize that into documented Neo4j graphs, or use the LinkML exports to convert data + LinkML schema into SQL.
+
+\subsection{Standard serializations}
+
+Extracted schemas are serialized in several formats. JSON-LD documents include a provenance
+block recording the extraction strategy, endpoint URL, generation timestamp, and pattern
+count. This makes each schema self-describing and ready for downstream use without requiring
+external metadata. VoID Turtle files describe class and property partitions following the
+extended VoID vocabulary. SHACL shapes are generated from a LinkML intermediate and can be
+applied directly for validation or repair. JSON-LD, SHACL and VoID turtles are compatible with
+standard RDF tooling including rdflib and Apache Jena. The LinkML is also used for exports such
+as pydantic Python APIs and SQL tables (work TODO).
+
+\subsection{rdf-solve tools}  %  Is this relevant?
+
+\paragraph{CLI and scripting}
+rdf-solve provides a command-line interface covering the full workflow from discovery
+to mapping inference. \texttt{rdf-solve discover} checks whether an endpoint already
+publishes VoID descriptions, avoiding redundant extraction. 
+\texttt{rdf-solve mine} uses SELECT queries to discover schema patterns. All 
+\texttt{rdf:type} values are first enumerated to identify classes and untyped resources;
+each class is then queried in configurable batches to retrieve its properties and range
+types. Pagination, batch size, and timeout are all configurable. Output is written as
+JSON-LD directly, with optional VoID partitions RDF graph.
+\texttt{rdf-solve mine-all} applies \texttt{mine} to every endpoint in a sources YAML
+for bulk seeding. \texttt{rdf-solve export} converts a VoID file to any combination
+of CSV, JSON-LD, LinkML, SHACL, and rdf-config-compatible formats. \texttt{rdf-solve
+instance-match} probes endpoints for classes matching URI patterns and
+links the classes containing such entities with  \texttt{skos:narrowMatch} mappings.         % narrowmatch is just a placeholder for now. It should depend on the mapping received.
+\texttt{rdf-solve semra} imports curated mapping sets from SeMRA sources.  % See how I go about mapping integration steps in the end
+\texttt{rdf-solve inference} derives new mappings from existing ones by inversion, 
+transitivity, and generalization. All commands expose \texttt{seed} or \texttt{mine-all} 
+variants for batch operation. The full stack is packaged for Docker deployment.
+% Missing: more exports! TODO.
+
+\paragraph{Web application and KG generator}
+% Because I'm working with too many (lerge-ish) files now, I am now loading data
+%into a SQL database file when building the docker. I have some simple tables defining schemas, mappings,
+%etc and use them in the API calls to the frontend.
+The web application uses a Flask backend with a SQLite store for all schema and mapping files. Schemas and mappings are  
+loaded into it from the directory when building the container. A REST API exposes schema lists, mapping sets, and
+SPARQL query endpoints. The TypeScript frontend provides a dataset and mappings source selector,  
+diagram-based visualization, a SHACL pattern browser, and an IRI resolver. 
+
+When a user selects a set of interconnected nodes, the application constructs SPARQL-like paths
+using the predicates from the mined schemas and overlaid mappings.                              % Needs better explaining
+
+\section{Results}
+
+\subsection{Mining performance and reliability}
+\label{sec:results-mining}
+
+We applied the mining algorithm (Section~\ref{sec:mining}) to $N$
+SPARQL endpoints, including (...).
+
+% what challenges depending on dataset? Some table based on report.jsonld files
+
+\paragraph*{Fallback utilization.}
+%some figure showing how many classes were recovered by each fallback strategy, and how many patterns were recovered by each strategy, to show the importance of fallbacks and the relative contribution of each one.
+
+\subsection{Pattern coverage and structural profile}
+\label{sec:results-patterns}
+
+\paragraph*{Pattern-type distribution.}
+
+\paragraph*{Class density.}
+
+
+\paragraph*{Property reuse across classes.}
+
+\subsection{Mapping inventory and inference expansion}
+\label{sec:results-mappings}
+
+\paragraph*{Raw mapping inventory.}
+Instance matching identified which endpoint pairs share URI
+namespaces, including Ensembl, UniProt, ChEBI, and FALDO identifiers.
+%Some table of shared namespaces and counts.
+
+\paragraph*{SeMRA-imported mappings.}
+% For each SeMRA mapping set: number of mappings, prefixes covered,
+% evidence types, how many classes could I resolve them to in the schemas
+
+\paragraph*{Inference expansion.}
+%some table or figure showing how many new mappings were inferred by each inference rule (transitivity, inversion, composition), and how many new endpoint pairs were connected by the inferred mappings.
+
+\subsection{Cross-endpoint connectivity graph}
+\label{sec:results-connectivity}
+
+\paragraph*{Graph construction.}
+% Nodes = datasets.  Edge (A,B) exists when a mapping edge (class_in_A, pred, class\_in\_B) has both classes present inthe respective mined schemas.
+% Three variants: G_raw, G_inferred, G_schema.
+
+\paragraph*{Connectivity metrics.}
+% TABLE: for each graph variant — edges, connected components,
+%        diameter, average degree, density.
+
+\paragraph*{Hidden bridges.}
+% Endpoint pairs reachable in G_inferred but not G_raw.
+% These are connections revealed only by mapping inference.
+% Report count and list representative examples.
+
+\paragraph*{Hub ontology analysis.}
+% For each class URI in mapping edges: how many datasets does it connect?
+% Rank by betweenness centrality. 
+
+\paragraph*{Connectivity visualization.}
+% FIGURE: network layout of G_inferred
+
+
+\subsection{Case study: cross-endpoint traversal}
+\label{sec:results-case-study}
+
+% Pick ONE concrete traversal (e.g.\ Protein -> Pathway via
+% UniProt -> WikiPathways through enzyme/protein class mapping).
+% 1. Extract the traversal path from the connectivity graph.
+% 2. Construct the federated SPARQL query using mined schemas + mappings.
+% 3. Execute and show concrete result rows.
+% 4. Estimate manual effort baseline: how long would it take a
+%    researcher to construct this query without rdf-solve?
+% 5. List 3--5 additional traversals that the same approach supports.
+
+
+\subsection{Comparison with prior work}
+\label{sec:results-comparison}
+
+% For overlapping endpoints: report schema evolution.
+% Classes added/removed, properties changed.
+% Attempt: longitudinal analysis of LSLOD schema drift, howvwer due to differences with the Kamdar methodology I doubt it will be any useful in practice, I need to see still but I assume from their SPARQL methods that they missed class patterns I could recover with my fallbacks. Also for counting, they just sampled 2000 entities so they likely missed 
+
+\subparagraph*{Vocabulary reuse re-estimation.}
+% Replicate Kamdar \& Musen Eq.~1 on our mined schemas using bioregistry (vs their BioPortal + LOV), we can also do BioPortal + LOV for direct comparison; find the reuse rate.
+% Compare 2018 vs 2025 reuse rate however consider the differences in out mining methodologies at all times.
+
+\paragraph*{Connectivity vs community detection.}
+% Their communities answer which schema elements are similar, My connectivity graph answers ``which
+% endpoints can be joined?'' (hard, mapping-based).
+% Show these are complementary; our graph is directly actionable.
+
+\subsection{Comparison with non-SPARQL-based mining methods}
+% eg shexer
+
+
+\subsection{Schema validation and refinement}
+\label{sec:results-validation}
+
+%% Something to say about using SHACL to "fix" a bigcat endpoint?
+
+The methodology also exposes which classes are untyped in the RDF graphs (i.e., which RDF literals are used as classes by schemas), which
+could be used iteratively to define new ontology classes need to be added in order for the endpoint to be self-documented.
+
+\subsection{Traversal query generation and execution}
+% This related to the rdfsolve typescript app
+
+\section{Discussion}
+
+\subsection{Addressing interoperability gaps through schemas}
+
+~\cite{kamdar_empirical_2021} concludes that the LSLOD
+cloud "is not actually as densely connected as is often indicated",
+with vocabulary reuse at under 20\,\% and many sources standing as
+isolated RDF conversions.
+Their community detection identified groups of semantically similar
+schema elements across sources using word-embedding similarity,
+revealing latent overlap invisible at the URI level. % But hwat didn't they do that I improve
+SynopsViz~\cite{bikakis_rdfsynopsviz_2014} and Sparklis~\cite{ferre_sparklis_2016} address
+exploration and querying of individual sources but do not bridge the
+gap across endpoints.
+LODsyndesis provides connectivity metrics across hundreds of datasets
+but operates on pre-computed indexes rather than live endpoint
+mining.
+
+We materialize the connectivity that prior analyses only
+detected statistically.
+The connectivity graph (Section~\ref{sec:results-connectivity}) identifies endpoint pairs
+that can be concretely joined via shared ontology classes and inferred
+mappings, answering ``which endpoints can be federated?'' rather than ``which schemas are similar?''
+
+Curated mapping sets imported further cover cases where namespace alignment alone is insufficient. % WHen I have results I quan quantify this or qualify it
+
+\subsection{Scalability and centralization}
+
+Papadaki et~al.~\cite{papadaki} highlighted the difficulty of
+achieving efficiency for complex aggregate queries at scale.
+
+Kamdar and Musen~\cite{kamdar_empirical_2021} argued for centralized
+top-down approaches to monitor accessibility and enforce vocabulary
+reuse standards.
+
+rdf-solve's multi-level fallback chain addresses the scalability
+concern at the extraction level, recovering patterns from endpoints
+that would silently fail under single-shot extraction.
+The containerized web application and batch-seeding scripts provide a
+reusable infrastructure for periodic re-mining, moving toward the
+centralized monitoring. % (...)
+
+%Find more citations for this section, comparison.
+
+
+\subsection{Mining robustness and the fallback contribution}
+
+The multi-level fallback chain (bisect, paginate, predicate-first
+decomposition) is an engineering contribution that enables all
+downstream analyses. % I honestly believe this, I tried many approaches and often got too truncated/incomplete results
+
+Prior extractors, including the \cite{kamdar_empirical_2021} tool, use
+single-shot queries per class and silently skip classes on timeout; Loupe~\cite{loupe2015}.  %carefully describe how Loupe does it
+% TODO: cite fallback-utilization numbers from Section on mining results
+% once available — expected: X\% of classes recovered only via bisection,
+% Y\% only via pagination, Z\% via predicate-first decomposition.
+
+The separation of pattern discovery from counting further ensures
+that a count failure does not cascade into a pattern loss, a design
+choice validated by the count-failure rate analysis.
+% TODO: cite specific count-failure rates once results are available.
+
+\subsection{Resulting LSLOD cloud}
+
+\paragraph{Schemas}
+\paragraph{Mapping layer}
+% Expected discussion points:
+% What results of mining schemas?
+
+% - With 2020 Kamdar paper: Methodological: differences in mining strategy, does it mean differences in extracted classes cannot be attributed solely to schema evolution.
+    % - How many of the original ~80 endpoints are still reachable?
+    % - For overlapping endpoints: classes added/removed, properties changed.
+    % - Vocabulary reuse re-estimation: replicate Kamdar Eq.1 on mined schemas using bioregistry (vs their BioPortal + LOV).
+    % - Reference Kamdar data at https://doi.org/10.6084/m9.figshare.12402425
+
+\subsection{Ontology reuse and matching}
+% Expected discussion:
+% - Make sure it is well defined
+% - Quantify: for which endpoints does this occur, and how many "classes"
+%   are actually ontology leaf terms?
+% - Possible mitigation: class-frequency thresholding, or post-mining
+%   clustering of classes that share identical property signatures.
+% - Connect to Mihindukulasooriya: ontologies are designed for
+%   entailment, not validation, do I even consider this to produce noisy schemas?
+
+\subsection{Mapping quality and evidence chains}
+
+The mapping layer's quality is bounded by its upstream sources.
+Instance-based matching detects shared URI namespaces but does not
+verify semantic equivalence; SeMRA-imported
+mappings~\cite{hoyt_assembly_2025} inherit the precision and recall of their
+curated sources.
+Inference propagation (transitivity, inversion) amplifies both
+signal and noise: transitive chains of length $\geq 3$ carry
+multiplicative uncertainty.
+The evidence-chain metadata preserved in the mapping JSON-LD
+documents these provenance paths, but downstream consumers must
+decide which evidence depth to trust.
+% Expected discussion:
+% - Report mapping precision on a manually verified sample.
+% - How many inferred mappings have chain length ≥ 3?
+% - Does the connectivity graph change materially when filtering to
+%   high-confidence (short-chain) mappings only?
+% - Connect to Kamdar's "intent for reuse": does instance matching
+%   actually resolve some of those cases, and which remain unresolved?
+
+\subsection{Limitations of schema mining}
+\label{sec:mining-discussion}
+
+The mining step depends on endpoint availability, rate limits, and
+engine-specific behavior, and is inherently liable to data
+incompleteness.
+
+\paragraph*{Graph scope and invisible types.}
+Phase~1 enumerates only types asserted via \texttt{rdf:type} and
+visible under the chosen graph scope; inferred or unmaterialized
+types are silently absent from $C$.
+Graph selection is therefore a critical configuration choice.
+The whole-endpoint mining variant (no named-graph restriction) with
+post-mining service-namespace filtering addresses this partially:
+it recovers patterns that would be missed under a strict graph scope,
+at the cost of including infrastructure artefacts that must be
+stripped.
+% Expected: quantify how many additional classes the .all mining recovers
+% vs named-graph-only mining, for endpoints where both are available.
+
+\paragraph*{Structural bias toward small classes.}
+Failure risk for $Q_\mathrm{to}$ grows with instance count and object
+cardinality, so the output may be biased toward small, well-indexed
+classes.
+When all fallback strategies fail, a batch contributes $\emptyset$ to
+$S$, indistinguishable from a class with genuinely no patterns of
+that type.
+Failures are logged but cannot be encoded in $S$ itself.
+% Expected: report how many classes hit the "strategies exhausted" path,
+% and whether they are systematically the largest classes.
+
+\paragraph*{Endpoint engine heterogeneity.}
+Different SPARQL engines (Virtuoso, Blazegraph, Fuseki, QLever)
+exhibit different timeout behavior, cost-limit semantics, and
+\texttt{GRAPH} clause interpretation.
+The fallback chain mitigates but does not eliminate these differences.
+% Possibly a table of engine-specific quirks encountered during mining.
+
+\subsection{Broader limitations and future work}
+
+% Structured discussion points for future expansion:
+
+\paragraph*{Named-graph vs.\ whole-endpoint trade-off.}
+Mining with named-graph restrictions yields cleaner schemas but may
+miss cross-graph patterns; whole-endpoint mining captures everything
+but requires post-mining filtering.
+The current service-namespace filter removes infrastructure artefacts
+but does not address ontology-class inflation
+(Section~\ref{sec:mining-discussion}).
+A class-significance scoring mechanism could improve this.
+
+\paragraph*{Property-level mappings.}
+The current mapping layer operates at class and entity level.
+Predicate-level mappings (e.g.\ relaxing RO predicates to SIO
+predicates) would enable richer cross-endpoint traversals and
+property-graph exports with simplified edge semantics.
+% This is the "fourth layer" mentioned in Methods but marked as TODO.
+
+\paragraph*{Incremental mining.}
+The current pipeline re-mines endpoints from scratch.
+Incremental mining; detecting only schema changes since the last
+run; would reduce load on endpoints and enable continuous monitoring,
+(...) % How?
+by~\cite{kamdar_empirical_2021}.
+
+\paragraph*{Validation feedback loops.}
+% After some manual inspection and changes, the SHACL shapes generated from mined schemas could be used to
+%validate the source data itself, exposing quality issues that are invisible without a schema.
+Feeding validation results back to dataset publishers would close the loop between schema mining and data
+improvement~\cite{mihindukulasooriya_rdf_2018}.
+
+\paragraph*{Downstream exports.}
+LinkML intermediate representations open a path to SQL table
+generation, property-graph exports (Neo4j), and typed Python APIs
+(Pydantic).
+
+
+
+\bibliographystyle{plain}
+\bibliography{paper}
+
+\end{document}
